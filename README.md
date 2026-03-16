@@ -1,29 +1,39 @@
 # PyOracle2
 
-https://blog.liquidsec.net/2020/11/30/introducing-pyoracle2/
+![License](https://img.shields.io/badge/license-GPLv3-f126ea.svg)
+![Python](https://img.shields.io/badge/python-3.10+-blue.svg)
+![Tests](https://github.com/liquidsec/pyOracle2/actions/workflows/tests.yaml/badge.svg?branch=main)
 
-A python-based padding oracle tool.
+A python-based padding oracle exploitation tool.
 
-Although several other padding oracle attack tools exist, some quite excellent, there are relatively few written in python. This tool provides another take on attacking padding oracle vulnerabilities with a handful of less common advanced features. 
+Although several other padding oracle attack tools exist, some quite excellent, there are relatively few written in python. This tool provides another take on attacking padding oracle vulnerabilities with a handful of less common advanced features.
 
-Special Features:
+## Features
 
-- **Fault Tolerance** - Can handle some random bad requests (performs sanity check and will redo a block result that doesn’t make sense)
-- **Resume feature** - Can be stopped and resumed at will (State of the operation is serialized and stored to disk!)
-- **HTTP Proxy Support**
-- **Positive and negative oracle searching** - can look for a special string to identify a successful request, and optionally the lack of a string
-- **Multiple IV modes** - Supports first block IV (most common), last block IV, or known IV.
+- **Async Concurrency** - Solve bytes with up to 256 concurrent requests for massive speed improvements
+- **Fault Tolerance** - Configurable confirmation rounds to eliminate false positives from unreliable oracles
+- **Resume** - Full state serialization to disk. Stop and resume at any point, including mid-block byte-level resume
+- **Encrypt & Decrypt** - Both CBC padding oracle decryption and encryption (via intermediary values)
+- **HTTP Proxy Support** - Route traffic through Burp, mitmproxy, etc.
+- **Positive and Negative Oracle Modes** - Search for a string on valid padding, or detect its absence
+- **Multiple IV Modes** - First block (most common), known IV, unknown IV, or anchor block
+- **Multiple Encoding Modes** - Base64, Base64URL, and Hex
+- **Multiple Input Modes** - URL parameter, query string, cookie, or POST body
+- **Redirect Following** - Manual redirect following with configurable delay between hops
+- **HTTP/2 Support** - Via httpx with h2
+- **Pre-seeded Intermediates** - Skip known bytes from a previous partial run
 
-Planned improvements:
+## Installation
 
-- ~~Different encoding modes (only base64 is supported currently, although this is definately the most common)~~ **Hex support added**
-- Ability to operate inside of XML parameters and JSON variables
-- Support for timing-based oracles
+```bash
+pip install poetry
+poetry install
+```
 
-
+## Usage
 
 ```
-usage: pyOracle2.py [-h] [-r RESTORE] [-i INPUT] [-m MODE] [-d] [-c CONFIG]
+usage: pyoracle2 [-h] [-r RESTORE] [-i INPUT] [-m MODE] [-d] [-c CONFIG] [-s INTERMEDIATES]
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -31,91 +41,56 @@ optional arguments:
                         Specify a state file to restore from
   -i INPUT, --input INPUT
                         Specify either the ciphertext (for decrypt) or
-                        plainttext (for encrypt)
-  -m MODE, --mode MODE  Select encrypt or decrypt mode
+                        plaintext (for encrypt)
+  -m MODE, --mode MODE  Select encrypt (e) or decrypt (d) mode
   -d, --debug           increase output verbosity
   -c CONFIG, --config CONFIG
                         Specify the configuration file
+  -s INTERMEDIATES, --intermediates INTERMEDIATES
+                        Pre-seed solved intermediate values. Format: "15:210,14:216"
 ```
 
-pyOracle2 is designed around the creation of a configuration file for each unique "job". The goal is to frontload the configuration of the job so that once it is set correctly, exploitation can occur as easily as possible with a concise CLI command. A sample of the configuration file is provided.
+PyOracle2 is designed around the creation of a configuration file for each unique job. The goal is to frontload the configuration so that once it is set correctly, exploitation occurs with a concise CLI command.
 
+### Quick Start
 
-Config file example
-This example config should work out of the box (aside from setting the correct IP address) with the PentesterLab padding oracle exercise iso: https://pentesterlab.com/exercises/padding_oracle/iso
+```bash
+# Decrypt mode
+pyoracle2 -m d -i "BASE64_CIPHERTEXT" -c target.ini
+
+# Encrypt mode
+pyoracle2 -m e -i "plaintext to encrypt" -c target.ini
+
+# Resume a saved state
+pyoracle2 -r pyOracleState-job-BLOCK_2-1710000000.pkl
+
+# Resume with pre-seeded intermediates from a previous run
+pyoracle2 -r pyOracleState-job-BLOCK_2-1710000000.pkl -s "15:210,14:55,13:128"
 ```
-[default]
 
-# Job Name
-name = Name
+## Configuration
 
-# Specify the target URL
-URL = http://127.0.0.1/index.php
+See `example.ini` for a fully commented configuration file. Key settings:
 
-# Specify the HTTP method (GET or POST)
-httpMethod = GET
+| Setting | Description |
+|---------|-------------|
+| `URL` | Target URL |
+| `httpMethod` | `GET` or `POST` |
+| `inputMode` | `parameter`, `querystring`, `cookie` |
+| `encodingMode` | `base64`, `base64Url`, `hex` |
+| `vulnerableParameter` | Name of the parameter containing the ciphertext |
+| `blocksize` | Block size (8 for DES/3DES, 16 for AES) |
+| `oracleMode` | `search` (text present = valid) or `negative` (text absent = valid) |
+| `oracleText` | The string to search for in the response |
+| `ivMode` | `firstblock`, `knownIV`, `unknown`, or `anchorBlock` |
+| `concurrency` | Number of concurrent async requests per byte (1-256) |
+| `confirmations` | Re-verification rounds per solved byte (0 = none) |
+| `followRedirects` | Follow HTTP redirects manually |
+| `redirectDelay` | Seconds to wait before following each redirect |
 
-# when using POST, specifiy the POST mode: (form-urlencoded, multipart, or json)
-postFormat = x-www-form-urlencoded
+## Running Tests
 
-# specify the input mode (parameter, body, cookie)
-inputMode = cookie
-
-# encoding mode. Current options are base64, base64Url, or hex
-encodingMode = base64
-
-# Specify the parameter which contains the vulnerable variable
-vulnerableParameter = auth
-
-# Additional Parameters (specified in a dictionary as a key/value pair). Be sure to use double quotes. 
-additionalParameters = {}
-
-# Set the blocksize for the target
-blocksize = 8
-
-# Enable / Disable http proxy for outgoing traffic
-httpProxyOn = True
-httpProxyIp = 127.0.0.1
-httpProxyPort = 8080
-
-# Specify headers to add to the request (specified in a dictionary as a key/value pair)
-
-headers = {"User-Agent":"Mozilla/5.0","Content-Type":"application/json"}
-
-
-# Specify Cookies to add to the request (specified in a dictionary as a key/value pair)
-cookies = {}
-
-
-# Specify the IV mode
-
-# In most implementations, the IV is provided as the 'first block' of the ciphertext. 
-# In other cases, the IV may be kept a known secret by both endpoints. In such a case, it should still be possible to decrypt everything but the first block.
-# The IV may also be a static values such as all zeroes.
-
-
-# Modes: 
-
-# 'firstblock'. This mode assumes that the first block of the ciphertext is the IV (most common)
-# 'knownIV'. This mode allows for user provided IV
-# 'unknown'. Use this mode when you do not know the IV and it is not the first block but still wish to decrypt all but the first block, or re-encrypt all but the first block for encryption
-# 'lastblock'. This has not been implemented yet, but it may be in the future as it is a rare but possible configuration
-
-
-# choose from one of the above modes
-ivMode = firstblock
-# If using knownIV mode, specify the IV
-#IV should be in decimal list format. For example: [72,65,82,65,77,66,69]
-iv =  [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
-
-# The oracle defines the information leak that is abused to know when padding is valid. This is typically an error message.
-# There are several trigger modes depending on the situation. Sometimes you will want to look for a specific phrase, other times you want to look for an absence of that phrase. 
-
-# trigger modes:
-# 'search' - simply look for a specific phrase
-# 'negative' - the opposite of search. Trigger when you don't see the phrase
-oracleMode = negative
-
-# Define the search phrase to look for from the oracle
-oracleText = Invalid padding
+```bash
+poetry install --with test
+poetry run pytest tests/ -q
 ```

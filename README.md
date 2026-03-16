@@ -1,5 +1,6 @@
 # blockbuster
 
+[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 ![License](https://img.shields.io/badge/license-GPLv3-f126ea.svg)
 ![Python](https://img.shields.io/badge/python-3.10+-blue.svg)
 ![Tests](https://github.com/liquidsec/blockbuster/actions/workflows/tests.yaml/badge.svg?branch=main)

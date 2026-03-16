@@ -1,0 +1,33 @@
+[project]
+name = "blockbuster"
+version = "1.0.0"
+description = "A python padding oracle vulnerability exploitation tool"
+authors = [
+    {name = "Paul Mueller"}
+]
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "httpx (>=0.28.1,<0.29.0)",
+    "validators (>=0.35.0,<0.36.0)",
+    "h2 (>=4.3.0,<5.0.0)"
+]
+
+[project.scripts]
+blockbuster = "blockbuster:main"
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.group.test.dependencies]
+pytest = "^9.0.2"
+pytest-asyncio = "^1.3.0"
+respx = "^0.22.0"
+pycryptodome = "^3.23.0"
+pytest-cov = "^7.0.0"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+

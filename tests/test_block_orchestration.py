@@ -1,7 +1,7 @@
 """Tests for nextBlock, block retry logic, and encrypt sanity check."""
 
 from types import SimpleNamespace
-from unittest.mock import patch, AsyncMock
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -68,11 +68,13 @@ class TestNextBlockEncrypt:
         def mock_request(token):
             return SimpleNamespace(text="OK", status_code=200)
 
-        with patch.object(
-            j, "encryptBlock", new_callable=AsyncMock, return_value=block_result
+        with (
+            patch.object(
+                j, "encryptBlock", new_callable=AsyncMock, return_value=block_result
+            ),
+            patch.object(j, "makeRequest", side_effect=mock_request),
         ):
-            with patch.object(j, "makeRequest", side_effect=mock_request):
-                result = await j.nextBlock()
+            result = await j.nextBlock()
 
         assert result == 0
         assert j.solvedBlocks[0] == block_result
@@ -94,11 +96,13 @@ class TestNextBlockEncrypt:
             # Sanity check fails — the oracle text IS found (negative mode: pass = text absent)
             return SimpleNamespace(text="Invalid padding", status_code=200)
 
-        with patch.object(
-            j, "encryptBlock", new_callable=AsyncMock, return_value=block_result
+        with (
+            patch.object(
+                j, "encryptBlock", new_callable=AsyncMock, return_value=block_result
+            ),
+            patch.object(j, "makeRequest", side_effect=mock_request),
         ):
-            with patch.object(j, "makeRequest", side_effect=mock_request):
-                result = await j.nextBlock()
+            result = await j.nextBlock()
 
         assert result == 1
         assert 0 not in j.solvedBlocks  # Block was backed out
@@ -149,18 +153,20 @@ class TestBlockRetryLogic:
         max_block_retries = 3
         block_failures = 0
 
-        with patch.object(j, "nextBlock", side_effect=mock_next_block):
-            with patch("blockbuster.blockbuster.saveState"):
-                while j.currentBlock < j.blockCount:
-                    result = await j.nextBlock()
-                    if result == 0:
-                        block_failures = 0
-                        j.currentBlock += 1
-                        j._clear_byte_progress()
-                    else:
-                        block_failures += 1
-                        if block_failures >= max_block_retries:
-                            break
+        with (
+            patch.object(j, "nextBlock", side_effect=mock_next_block),
+            patch("blockbuster.blockbuster.saveState"),
+        ):
+            while j.currentBlock < j.blockCount:
+                result = await j.nextBlock()
+                if result == 0:
+                    block_failures = 0
+                    j.currentBlock += 1
+                    j._clear_byte_progress()
+                else:
+                    block_failures += 1
+                    if block_failures >= max_block_retries:
+                        break
 
         assert j.currentBlock == 1
         assert call_count == 2
@@ -220,11 +226,13 @@ class TestNextBlockEncryptKnownIV:
             captured_tokens.append(token)
             return SimpleNamespace(text="OK", status_code=200)
 
-        with patch.object(
-            j, "encryptBlock", new_callable=AsyncMock, return_value=block_result
+        with (
+            patch.object(
+                j, "encryptBlock", new_callable=AsyncMock, return_value=block_result
+            ),
+            patch.object(j, "makeRequest", side_effect=mock_request),
         ):
-            with patch.object(j, "makeRequest", side_effect=mock_request):
-                result = await j.nextBlock()
+            result = await j.nextBlock()
 
         assert result == 0
         # The sanity check token should contain the IV appended

@@ -3,7 +3,6 @@
 import io
 import sys
 
-
 from blockbuster.blockbuster import paddify
 from tests.conftest import make_job
 
@@ -104,7 +103,7 @@ class TestEncryptInitPadding:
         assert len(j.blocks) == 3
         # blocks[0] should be the LAST plaintext block (padding block)
         # blocks[-1] should be the FIRST plaintext block
-        padded = "A".encode() * 32 + bytes([16] * 16)
+        padded = b"A" * 32 + bytes([16] * 16)
         first_block = list(padded[:16])
         last_block = list(padded[32:48])
         assert list(j.blocks[0]) == last_block

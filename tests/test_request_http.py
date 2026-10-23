@@ -1,6 +1,6 @@
 """Tests for HTTP retry logic, redirect following, and async requests."""
 
-from unittest.mock import patch, AsyncMock
+from unittest.mock import AsyncMock, patch
 
 import httpx
 import pytest
@@ -24,9 +24,11 @@ class TestRetryLogic:
                 raise httpx.ConnectError("Connection refused")
             return httpx.Response(200, text="OK")
 
-        with patch.object(j.client, "get", side_effect=fake_get):
-            with patch("time.sleep"):  # skip actual waits
-                result = j.makeRequest("test_token")
+        with (
+            patch.object(j.client, "get", side_effect=fake_get),
+            patch("time.sleep"),  # skip actual waits
+        ):
+            result = j.makeRequest("test_token")
 
         assert result.status_code == 200
         assert call_count == 3
@@ -38,10 +40,12 @@ class TestRetryLogic:
         def always_fail(url, **kwargs):
             raise httpx.ConnectError("Connection refused")
 
-        with patch.object(j.client, "get", side_effect=always_fail):
-            with patch("time.sleep"):
-                with pytest.raises(httpx.ConnectError):
-                    j.makeRequest("test_token")
+        with (
+            patch.object(j.client, "get", side_effect=always_fail),
+            patch("time.sleep"),
+            pytest.raises(httpx.ConnectError),
+        ):
+            j.makeRequest("test_token")
 
     def test_retry_backoff_times(self):
         j = make_job()
@@ -57,9 +61,11 @@ class TestRetryLogic:
                 raise httpx.TimeoutException("timeout")
             return httpx.Response(200, text="OK")
 
-        with patch.object(j.client, "get", side_effect=fake_get):
-            with patch("time.sleep", side_effect=lambda s: sleep_calls.append(s)):
-                j.makeRequest("test_token")
+        with (
+            patch.object(j.client, "get", side_effect=fake_get),
+            patch("time.sleep", side_effect=lambda s: sleep_calls.append(s)),
+        ):
+            j.makeRequest("test_token")
 
         # Backoff: 2**0=1, 2**1=2
         assert sleep_calls == [1, 2]
@@ -82,9 +88,11 @@ class TestRetryLogicAsync:
                 raise httpx.ConnectError("Connection refused")
             return httpx.Response(200, text="OK")
 
-        with patch.object(j.async_client, "get", side_effect=fake_get):
-            with patch("asyncio.sleep", new_callable=AsyncMock):
-                result = await j.makeRequestAsync("test_token")
+        with (
+            patch.object(j.async_client, "get", side_effect=fake_get),
+            patch("asyncio.sleep", new_callable=AsyncMock),
+        ):
+            result = await j.makeRequestAsync("test_token")
 
         assert result.status_code == 200
         assert call_count == 3
@@ -97,10 +105,12 @@ class TestRetryLogicAsync:
         async def always_fail(url, **kwargs):
             raise httpx.ConnectError("Connection refused")
 
-        with patch.object(j.async_client, "get", side_effect=always_fail):
-            with patch("asyncio.sleep", new_callable=AsyncMock):
-                with pytest.raises(httpx.ConnectError):
-                    await j.makeRequestAsync("test_token")
+        with (
+            patch.object(j.async_client, "get", side_effect=always_fail),
+            patch("asyncio.sleep", new_callable=AsyncMock),
+            pytest.raises(httpx.ConnectError),
+        ):
+            await j.makeRequestAsync("test_token")
 
 
 class TestRedirectFollowing:
@@ -148,9 +158,11 @@ class TestRedirectFollowing:
         final_resp = httpx.Response(200, text="OK")
 
         sleep_calls = []
-        with patch.object(j.client, "get", return_value=final_resp):
-            with patch("time.sleep", side_effect=lambda s: sleep_calls.append(s)):
-                j._followRedirect(redirect_resp, {})
+        with (
+            patch.object(j.client, "get", return_value=final_resp),
+            patch("time.sleep", side_effect=lambda s: sleep_calls.append(s)),
+        ):
+            j._followRedirect(redirect_resp, {})
 
         assert sleep_calls == [0.5]
 
@@ -221,11 +233,13 @@ class TestRedirectFollowingAsync:
         async def fake_sleep(s):
             sleep_calls.append(s)
 
-        with patch.object(
-            j.async_client, "get", new_callable=AsyncMock, return_value=final_resp
+        with (
+            patch.object(
+                j.async_client, "get", new_callable=AsyncMock, return_value=final_resp
+            ),
+            patch("asyncio.sleep", side_effect=fake_sleep),
         ):
-            with patch("asyncio.sleep", side_effect=fake_sleep):
-                await j._followRedirectAsync(redirect_resp, {})
+            await j._followRedirectAsync(redirect_resp, {})
 
         assert sleep_calls == [1.0]
 
@@ -411,9 +425,11 @@ class TestMakeRequestSyncPaths:
             request=httpx.Request("GET", "http://testserver/oracle?token=x"),
         )
 
-        with patch.object(j.client, "get", return_value=resp):
-            with patch.object(j, "_followRedirect", return_value=resp) as mock_redir:
-                j.makeRequest("tok")
+        with (
+            patch.object(j.client, "get", return_value=resp),
+            patch.object(j, "_followRedirect", return_value=resp) as mock_redir,
+        ):
+            j.makeRequest("tok")
 
         mock_redir.assert_called_once()
 
@@ -432,9 +448,11 @@ class TestMakeRequestSyncPaths:
             return httpx.Response(200, text="OK")
 
         progress = [0, 0]
-        with patch.object(j.client, "get", side_effect=fake_get):
-            with patch("time.sleep"):
-                j.makeRequest("tok", progress=progress)
+        with (
+            patch.object(j.client, "get", side_effect=fake_get),
+            patch("time.sleep"),
+        ):
+            j.makeRequest("tok", progress=progress)
 
         assert progress[1] == 2  # Two retries
 
@@ -472,11 +490,13 @@ class TestMakeRequestAsyncPaths:
         async def fake_get(url, **kwargs):
             return resp
 
-        with patch.object(j.async_client, "get", side_effect=fake_get):
-            with patch.object(
+        with (
+            patch.object(j.async_client, "get", side_effect=fake_get),
+            patch.object(
                 j, "_followRedirectAsync", new_callable=AsyncMock, return_value=resp
-            ) as mock_redir:
-                await j.makeRequestAsync("tok")
+            ) as mock_redir,
+        ):
+            await j.makeRequestAsync("tok")
 
         mock_redir.assert_called_once()
 
@@ -495,8 +515,10 @@ class TestMakeRequestAsyncPaths:
             return httpx.Response(200, text="OK")
 
         progress = [0, 0]
-        with patch.object(j.async_client, "get", side_effect=fake_get):
-            with patch("asyncio.sleep", new_callable=AsyncMock):
-                await j.makeRequestAsync("tok", progress=progress)
+        with (
+            patch.object(j.async_client, "get", side_effect=fake_get),
+            patch("asyncio.sleep", new_callable=AsyncMock),
+        ):
+            await j.makeRequestAsync("tok", progress=progress)
 
         assert progress[1] == 1

@@ -3,7 +3,6 @@
 import pickle
 from unittest.mock import patch
 
-
 from tests.conftest import make_job
 
 

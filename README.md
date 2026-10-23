@@ -1,7 +1,7 @@
 # blockbuster
 
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
-![License](https://img.shields.io/badge/license-GPLv3-f126ea.svg)
+![License](https://img.shields.io/badge/license-AGPLv3-f126ea.svg)
 ![Python](https://img.shields.io/badge/python-3.10+-blue.svg)
 ![Tests](https://github.com/liquidsec/blockbuster/actions/workflows/tests.yaml/badge.svg?branch=main)
 
@@ -95,3 +95,9 @@ See `example.ini` for a fully commented configuration file. Key settings:
 poetry install --with test
 poetry run pytest tests/ -q
 ```
+
+## License
+
+Copyright (C) 2020 Black Lantern Security
+
+Licensed under the GNU Affero General Public License v3.0 or later (`AGPL-3.0-or-later`). See [LICENSE](LICENSE).

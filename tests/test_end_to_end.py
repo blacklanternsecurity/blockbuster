@@ -13,7 +13,7 @@ from unittest.mock import patch
 
 import pytest
 
-from tests.conftest import make_job, PaddingOracle, AES_KEY, AES_IV, ORACLE
+from tests.conftest import AES_IV, AES_KEY, ORACLE, PaddingOracle, make_job
 
 
 def make_mock_oracle(
@@ -81,13 +81,15 @@ class TestFullDecrypt:
 
         mock_oracle = make_mock_oracle(ORACLE)
 
-        with patch.object(j, "makeRequest", side_effect=mock_oracle):
-            with patch("blockbuster.blockbuster.saveState"):
-                while j.currentBlock < j.blockCount:
-                    result = await j.nextBlock()
-                    assert result == 0, f"Block {j.currentBlock} failed"
-                    j.currentBlock += 1
-                    j._clear_byte_progress()
+        with (
+            patch.object(j, "makeRequest", side_effect=mock_oracle),
+            patch("blockbuster.blockbuster.saveState"),
+        ):
+            while j.currentBlock < j.blockCount:
+                result = await j.nextBlock()
+                assert result == 0, f"Block {j.currentBlock} failed"
+                j.currentBlock += 1
+                j._clear_byte_progress()
 
         # Reconstruct plaintext with PKCS#7 stripping
         combined = b"".join(j.solvedBlocks[i] for i in sorted(j.solvedBlocks.keys()))
@@ -128,13 +130,15 @@ class TestFullDecrypt:
 
         mock_oracle = make_mock_oracle(ORACLE)
 
-        with patch.object(j, "makeRequest", side_effect=mock_oracle):
-            with patch("blockbuster.blockbuster.saveState"):
-                while j.currentBlock < j.blockCount:
-                    result = await j.nextBlock()
-                    assert result == 0
-                    j.currentBlock += 1
-                    j._clear_byte_progress()
+        with (
+            patch.object(j, "makeRequest", side_effect=mock_oracle),
+            patch("blockbuster.blockbuster.saveState"),
+        ):
+            while j.currentBlock < j.blockCount:
+                result = await j.nextBlock()
+                assert result == 0
+                j.currentBlock += 1
+                j._clear_byte_progress()
 
         combined = b"".join(j.solvedBlocks[i] for i in sorted(j.solvedBlocks.keys()))
         pad_len = combined[-1]
@@ -176,13 +180,15 @@ class TestFullDecrypt:
 
         mock_oracle = make_mock_oracle(ORACLE)
 
-        with patch.object(j, "makeRequest", side_effect=mock_oracle):
-            with patch("blockbuster.blockbuster.saveState"):
-                while j.currentBlock < j.blockCount:
-                    result = await j.nextBlock()
-                    assert result == 0
-                    j.currentBlock += 1
-                    j._clear_byte_progress()
+        with (
+            patch.object(j, "makeRequest", side_effect=mock_oracle),
+            patch("blockbuster.blockbuster.saveState"),
+        ):
+            while j.currentBlock < j.blockCount:
+                result = await j.nextBlock()
+                assert result == 0
+                j.currentBlock += 1
+                j._clear_byte_progress()
 
         combined = b"".join(j.solvedBlocks[i] for i in sorted(j.solvedBlocks.keys()))
         pad_len = combined[-1]
@@ -223,13 +229,15 @@ class TestFullDecrypt:
 
         mock_oracle = make_mock_oracle(ORACLE, encoding_mode="hex")
 
-        with patch.object(j, "makeRequest", side_effect=mock_oracle):
-            with patch("blockbuster.blockbuster.saveState"):
-                while j.currentBlock < j.blockCount:
-                    result = await j.nextBlock()
-                    assert result == 0
-                    j.currentBlock += 1
-                    j._clear_byte_progress()
+        with (
+            patch.object(j, "makeRequest", side_effect=mock_oracle),
+            patch("blockbuster.blockbuster.saveState"),
+        ):
+            while j.currentBlock < j.blockCount:
+                result = await j.nextBlock()
+                assert result == 0
+                j.currentBlock += 1
+                j._clear_byte_progress()
 
         combined = b"".join(j.solvedBlocks[i] for i in sorted(j.solvedBlocks.keys()))
         pad_len = combined[-1]
@@ -276,13 +284,15 @@ class TestFullDecrypt:
         # The oracle just checks the raw bytes we send
         mock_oracle = make_mock_oracle(ORACLE)
 
-        with patch.object(j, "makeRequest", side_effect=mock_oracle):
-            with patch("blockbuster.blockbuster.saveState"):
-                while j.currentBlock < j.blockCount:
-                    result = await j.nextBlock()
-                    assert result == 0
-                    j.currentBlock += 1
-                    j._clear_byte_progress()
+        with (
+            patch.object(j, "makeRequest", side_effect=mock_oracle),
+            patch("blockbuster.blockbuster.saveState"),
+        ):
+            while j.currentBlock < j.blockCount:
+                result = await j.nextBlock()
+                assert result == 0
+                j.currentBlock += 1
+                j._clear_byte_progress()
 
         combined = b"".join(j.solvedBlocks[i] for i in sorted(j.solvedBlocks.keys()))
         pad_len = combined[-1]
@@ -332,13 +342,15 @@ class TestFullDecrypt:
                 return SimpleNamespace(text="Decryption successful", status_code=200)
             return SimpleNamespace(text="Error occurred", status_code=200)
 
-        with patch.object(j, "makeRequest", side_effect=mock_request):
-            with patch("blockbuster.blockbuster.saveState"):
-                while j.currentBlock < j.blockCount:
-                    result = await j.nextBlock()
-                    assert result == 0
-                    j.currentBlock += 1
-                    j._clear_byte_progress()
+        with (
+            patch.object(j, "makeRequest", side_effect=mock_request),
+            patch("blockbuster.blockbuster.saveState"),
+        ):
+            while j.currentBlock < j.blockCount:
+                result = await j.nextBlock()
+                assert result == 0
+                j.currentBlock += 1
+                j._clear_byte_progress()
 
         combined = b"".join(j.solvedBlocks[i] for i in sorted(j.solvedBlocks.keys()))
         pad_len = combined[-1]
@@ -392,13 +404,15 @@ class TestFullDecrypt:
         async def mock_request_async(token, progress=None):
             return mock_request_sync(token, progress)
 
-        with patch.object(j, "makeRequestAsync", side_effect=mock_request_async):
-            with patch("blockbuster.blockbuster.saveState"):
-                while j.currentBlock < j.blockCount:
-                    result = await j.nextBlock()
-                    assert result == 0
-                    j.currentBlock += 1
-                    j._clear_byte_progress()
+        with (
+            patch.object(j, "makeRequestAsync", side_effect=mock_request_async),
+            patch("blockbuster.blockbuster.saveState"),
+        ):
+            while j.currentBlock < j.blockCount:
+                result = await j.nextBlock()
+                assert result == 0
+                j.currentBlock += 1
+                j._clear_byte_progress()
 
         combined = b"".join(j.solvedBlocks[i] for i in sorted(j.solvedBlocks.keys()))
         pad_len = combined[-1]
@@ -458,13 +472,15 @@ class TestFullEncrypt:
                 return SimpleNamespace(text="OK", status_code=200)
             return SimpleNamespace(text="Invalid padding", status_code=200)
 
-        with patch.object(j, "makeRequest", side_effect=mock_request):
-            with patch("blockbuster.blockbuster.saveState"):
-                while j.currentBlock < j.blockCount:
-                    result = await j.nextBlock()
-                    assert result == 0, f"Block {j.currentBlock} failed"
-                    j.currentBlock += 1
-                    j._clear_byte_progress()
+        with (
+            patch.object(j, "makeRequest", side_effect=mock_request),
+            patch("blockbuster.blockbuster.saveState"),
+        ):
+            while j.currentBlock < j.blockCount:
+                result = await j.nextBlock()
+                assert result == 0, f"Block {j.currentBlock} failed"
+                j.currentBlock += 1
+                j._clear_byte_progress()
 
         # Verify the final assembled ciphertext is oracle-valid
         joined = b"".join(reversed(list(j.solvedBlocks.values())))
@@ -516,24 +532,28 @@ class TestMidAttackResume:
         j2 = copy.deepcopy(j)
         j2.initialize_client()
 
-        with patch.object(j2, "makeRequest", side_effect=mock_oracle):
-            with patch("blockbuster.blockbuster.saveState"):
-                while j2.currentBlock < j2.blockCount:
-                    result = await j2.nextBlock()
-                    assert result == 0
-                    j2.currentBlock += 1
-                    j2._clear_byte_progress()
+        with (
+            patch.object(j2, "makeRequest", side_effect=mock_oracle),
+            patch("blockbuster.blockbuster.saveState"),
+        ):
+            while j2.currentBlock < j2.blockCount:
+                result = await j2.nextBlock()
+                assert result == 0
+                j2.currentBlock += 1
+                j2._clear_byte_progress()
 
         expected = b"".join(j2.solvedBlocks[i] for i in sorted(j2.solvedBlocks.keys()))
 
         # Now run with j but verify it produces the same result
-        with patch.object(j, "makeRequest", side_effect=mock_oracle):
-            with patch("blockbuster.blockbuster.saveState"):
-                while j.currentBlock < j.blockCount:
-                    result = await j.nextBlock()
-                    assert result == 0
-                    j.currentBlock += 1
-                    j._clear_byte_progress()
+        with (
+            patch.object(j, "makeRequest", side_effect=mock_oracle),
+            patch("blockbuster.blockbuster.saveState"),
+        ):
+            while j.currentBlock < j.blockCount:
+                result = await j.nextBlock()
+                assert result == 0
+                j.currentBlock += 1
+                j._clear_byte_progress()
 
         actual = b"".join(j.solvedBlocks[i] for i in sorted(j.solvedBlocks.keys()))
         assert actual == expected

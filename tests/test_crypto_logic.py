@@ -10,13 +10,12 @@ import base64
 import io
 import sys
 from types import SimpleNamespace
-from unittest.mock import patch, AsyncMock
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from Crypto.Cipher import AES
 
-from tests.conftest import make_job, PaddingOracle, AES_KEY, AES_IV, ORACLE
-
+from tests.conftest import AES_IV, AES_KEY, ORACLE, PaddingOracle, make_job
 
 # ---------------------------------------------------------------------------
 # Helpers: compute expected intermediate values for known key
@@ -422,9 +421,11 @@ class TestSolveByteDispatch:
         j = make_job(concurrency=1)
         j.initialize_client()
 
-        with patch.object(j, "solveByteSync", return_value=(42, None)) as mock_sync:
-            with patch.object(j, "solveByteAsync") as mock_async:
-                result = await j.solveByte(15, 1, {}, [0] * 16, False)
+        with (
+            patch.object(j, "solveByteSync", return_value=(42, None)) as mock_sync,
+            patch.object(j, "solveByteAsync") as mock_async,
+        ):
+            result = await j.solveByte(15, 1, {}, [0] * 16, False)
 
         mock_sync.assert_called_once()
         mock_async.assert_not_called()
@@ -435,11 +436,13 @@ class TestSolveByteDispatch:
         j = make_job(concurrency=10)
         j.initialize_client()
 
-        with patch.object(j, "solveByteSync") as mock_sync:
-            with patch.object(
+        with (
+            patch.object(j, "solveByteSync") as mock_sync,
+            patch.object(
                 j, "solveByteAsync", new_callable=AsyncMock, return_value=(42, None)
-            ) as mock_async:
-                await j.solveByte(15, 1, {}, [0] * 16, False)
+            ) as mock_async,
+        ):
+            await j.solveByte(15, 1, {}, [0] * 16, False)
 
         mock_async.assert_called_once()
         mock_sync.assert_not_called()
@@ -526,9 +529,11 @@ class TestDecryptBlockMath:
             sys.stdout = old_stdout
         j.initialize_client()
 
-        with patch.object(j, "makeRequest", side_effect=mock_oracle_request):
-            with patch("blockbuster.blockbuster.saveState"):
-                result = await j.decryptBlock()
+        with (
+            patch.object(j, "makeRequest", side_effect=mock_oracle_request),
+            patch("blockbuster.blockbuster.saveState"),
+        ):
+            result = await j.decryptBlock()
 
         # The decrypted block should be the first 16 bytes of the padded plaintext
         # Our plaintext is 16 bytes so block 0 = plaintext, block 1 = padding
@@ -580,9 +585,11 @@ class TestEncryptBlockMath:
                 return SimpleNamespace(text="OK", status_code=200)
             return SimpleNamespace(text="Invalid padding", status_code=200)
 
-        with patch.object(j, "makeRequest", side_effect=mock_oracle_request):
-            with patch("blockbuster.blockbuster.saveState"):
-                result = await j.encryptBlock()
+        with (
+            patch.object(j, "makeRequest", side_effect=mock_oracle_request),
+            patch("blockbuster.blockbuster.saveState"),
+        ):
+            result = await j.encryptBlock()
 
         # Result should be blocksize bytes of ciphertext
         assert len(result) == 16
@@ -649,9 +656,11 @@ class TestDecryptBlockResume:
                 return SimpleNamespace(text="OK", status_code=200)
             return SimpleNamespace(text="Invalid padding", status_code=200)
 
-        with patch.object(j, "makeRequest", side_effect=mock_oracle):
-            with patch("blockbuster.blockbuster.saveState"):
-                result = await j.decryptBlock()
+        with (
+            patch.object(j, "makeRequest", side_effect=mock_oracle),
+            patch("blockbuster.blockbuster.saveState"),
+        ):
+            result = await j.decryptBlock()
 
         assert result == plaintext
 
@@ -704,16 +713,20 @@ class TestEncryptBlockResume:
         j2 = copy.deepcopy(j)
         j2.initialize_client()
 
-        with patch.object(j2, "makeRequest", side_effect=mock_oracle):
-            with patch("blockbuster.blockbuster.saveState"):
-                await j2.encryptBlock()
+        with (
+            patch.object(j2, "makeRequest", side_effect=mock_oracle),
+            patch("blockbuster.blockbuster.saveState"),
+        ):
+            await j2.encryptBlock()
 
         # Now test resume: pre-seed byte 15 as solved
         # We need to figure out the intermediate for byte 15
         # Run the first byte only and capture the intermediate
-        with patch.object(j, "makeRequest", side_effect=mock_oracle):
-            with patch("blockbuster.blockbuster.saveState"):
-                result = await j.encryptBlock()
+        with (
+            patch.object(j, "makeRequest", side_effect=mock_oracle),
+            patch("blockbuster.blockbuster.saveState"),
+        ):
+            result = await j.encryptBlock()
 
         assert len(result) == 16
 
@@ -766,9 +779,11 @@ class TestPreseededIntermediates:
                 return SimpleNamespace(text="OK", status_code=200)
             return SimpleNamespace(text="Invalid padding", status_code=200)
 
-        with patch.object(j, "makeRequest", side_effect=mock_oracle):
-            with patch("blockbuster.blockbuster.saveState"):
-                result = await j.decryptBlock()
+        with (
+            patch.object(j, "makeRequest", side_effect=mock_oracle),
+            patch("blockbuster.blockbuster.saveState"),
+        ):
+            result = await j.decryptBlock()
 
         assert result == plaintext
 
@@ -811,9 +826,11 @@ class TestPreseededIntermediates:
                 return SimpleNamespace(text="OK", status_code=200)
             return SimpleNamespace(text="Invalid padding", status_code=200)
 
-        with patch.object(j, "makeRequest", side_effect=mock_oracle):
-            with patch("blockbuster.blockbuster.saveState"):
-                result = await j.decryptBlock()
+        with (
+            patch.object(j, "makeRequest", side_effect=mock_oracle),
+            patch("blockbuster.blockbuster.saveState"),
+        ):
+            result = await j.decryptBlock()
 
         # Should still get correct result via fallback
         assert result == plaintext
@@ -860,9 +877,11 @@ class TestEncryptPreseededIntermediates:
             return SimpleNamespace(text="Invalid padding", status_code=200)
 
         # No preseeded values - just verify encrypt works
-        with patch.object(j, "makeRequest", side_effect=mock_oracle):
-            with patch("blockbuster.blockbuster.saveState"):
-                result = await j.encryptBlock()
+        with (
+            patch.object(j, "makeRequest", side_effect=mock_oracle),
+            patch("blockbuster.blockbuster.saveState"),
+        ):
+            result = await j.encryptBlock()
 
         assert len(result) == 16
 
@@ -933,9 +952,11 @@ class TestDecryptBlockLatin1Fallback:
                 return SimpleNamespace(text="OK", status_code=200)
             return SimpleNamespace(text="Invalid padding", status_code=200)
 
-        with patch.object(j, "makeRequest", side_effect=mock_oracle):
-            with patch("blockbuster.blockbuster.saveState"):
-                result = await j.decryptBlock()
+        with (
+            patch.object(j, "makeRequest", side_effect=mock_oracle),
+            patch("blockbuster.blockbuster.saveState"),
+        ):
+            result = await j.decryptBlock()
 
         # The raw bytes should be recovered
         assert result == raw_plaintext
@@ -1232,9 +1253,11 @@ class TestDecryptBlockUnknownIV:
                 return SimpleNamespace(text="OK", status_code=200)
             return SimpleNamespace(text="Invalid padding", status_code=200)
 
-        with patch.object(j, "makeRequest", side_effect=mock_oracle):
-            with patch("blockbuster.blockbuster.saveState"):
-                result = await j.decryptBlock()
+        with (
+            patch.object(j, "makeRequest", side_effect=mock_oracle),
+            patch("blockbuster.blockbuster.saveState"),
+        ):
+            result = await j.decryptBlock()
 
         # First block with unknown IV will be XOR'd with zeros instead of real IV
         # So we get intermediate values XOR zeros = intermediate values (garbled)
@@ -1283,9 +1306,11 @@ class TestEncryptBlockKnownIV:
                 return SimpleNamespace(text="OK", status_code=200)
             return SimpleNamespace(text="Invalid padding", status_code=200)
 
-        with patch.object(j, "makeRequest", side_effect=mock_oracle):
-            with patch("blockbuster.blockbuster.saveState"):
-                result = await j.encryptBlock()
+        with (
+            patch.object(j, "makeRequest", side_effect=mock_oracle),
+            patch("blockbuster.blockbuster.saveState"),
+        ):
+            result = await j.encryptBlock()
 
         assert len(result) == 16
 
@@ -1336,9 +1361,11 @@ class TestEncryptBlockPreseeded:
         j2 = copy.deepcopy(j)
         j2.initialize_client()
 
-        with patch.object(j2, "makeRequest", side_effect=mock_oracle):
-            with patch("blockbuster.blockbuster.saveState"):
-                await j2.encryptBlock()
+        with (
+            patch.object(j2, "makeRequest", side_effect=mock_oracle),
+            patch("blockbuster.blockbuster.saveState"),
+        ):
+            await j2.encryptBlock()
 
         # Now re-solve with preseeded byte 15
         # We need to discover the intermediate value
@@ -1356,9 +1383,11 @@ class TestEncryptBlockPreseeded:
         # Test with wrong value - should still produce valid result via fallback
         j.preseeded_intermediates = {15: 0x00}  # Almost certainly wrong
 
-        with patch.object(j, "makeRequest", side_effect=mock_oracle):
-            with patch("blockbuster.blockbuster.saveState"):
-                result = await j.encryptBlock()
+        with (
+            patch.object(j, "makeRequest", side_effect=mock_oracle),
+            patch("blockbuster.blockbuster.saveState"),
+        ):
+            result = await j.encryptBlock()
 
         assert len(result) == 16
 
@@ -1404,17 +1433,21 @@ class TestEncryptBlockMultiBlock:
             return SimpleNamespace(text="Invalid padding", status_code=200)
 
         # Solve block 0
-        with patch.object(j, "makeRequest", side_effect=mock_oracle):
-            with patch("blockbuster.blockbuster.saveState"):
-                result0 = await j.encryptBlock()
+        with (
+            patch.object(j, "makeRequest", side_effect=mock_oracle),
+            patch("blockbuster.blockbuster.saveState"),
+        ):
+            result0 = await j.encryptBlock()
 
         j.solvedBlocks[0] = result0
         j.currentBlock = 1
 
         # Solve block 1 — uses solvedBlocks[0] as previousBlock
-        with patch.object(j, "makeRequest", side_effect=mock_oracle):
-            with patch("blockbuster.blockbuster.saveState"):
-                result1 = await j.encryptBlock()
+        with (
+            patch.object(j, "makeRequest", side_effect=mock_oracle),
+            patch("blockbuster.blockbuster.saveState"),
+        ):
+            result1 = await j.encryptBlock()
 
         assert len(result1) == 16
 

@@ -5,7 +5,6 @@ import io
 import sys
 import urllib.parse
 
-
 from tests.conftest import make_job
 
 
@@ -119,13 +118,13 @@ class TestDecryptInitDecoding:
         blocksize=16,
         iv=None,
     ):
-        kw = dict(
-            sourceString=source_string,
-            mode="decrypt",
-            encodingMode=encoding_mode,
-            ivMode=iv_mode,
-            blocksize=blocksize,
-        )
+        kw = {
+            "sourceString": source_string,
+            "mode": "decrypt",
+            "encodingMode": encoding_mode,
+            "ivMode": iv_mode,
+            "blocksize": blocksize,
+        }
         if iv is not None:
             kw["iv"] = iv
         j = make_job(**kw)

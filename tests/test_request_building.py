@@ -74,7 +74,7 @@ class TestBuildRequestPOST:
             postFormat="form-urlencoded",
             vulnerableParameter="tok",
         )
-        method, url, kwargs = j._buildRequest("AAAA")
+        method, _url, kwargs = j._buildRequest("AAAA")
         assert method == "POST"
         assert kwargs["data"]["tok"] == "AAAA"
         assert "application/x-www-form-urlencoded" in kwargs["headers"]["Content-Type"]
@@ -108,7 +108,7 @@ class TestBuildRequestPOST:
 
     def test_querystring_in_post(self):
         j = self._job(inputMode="querystring", postFormat="form-urlencoded")
-        _, url, kwargs = j._buildRequest("CT_IN_QS")
+        _, url, _kwargs = j._buildRequest("CT_IN_QS")
         # Token goes in URL, not body
         assert "?CT_IN_QS" in url
 

